@@ -157,6 +157,7 @@ renders as a trailing separator, which the whitespace hook rejects — write the
 * [`lore unstage`↴](#lore-unstage)
 * [`lore reset`↴](#lore-reset)
 * [`lore diff`↴](#lore-diff)
+* [`lore difftool`↴](#lore-difftool)
 * [`lore history`↴](#lore-history)
 * [`lore commit`↴](#lore-commit)
 * [`lore sync`↴](#lore-sync)
@@ -205,6 +206,7 @@ renders as a trailing separator, which the whitespace hook rejects — write the
 * `unstage` — Unstage changes to a file or directory
 * `reset` — Reset changes to a file or directory
 * `diff` — Show differences between two revisions of a file
+* `difftool` — Show changes using an external diff tool
 * `history` — List revisions of a repository
 * `commit` — Commit the staged revision
 * `sync` — Synchronize to a repository state
@@ -1459,6 +1461,7 @@ File commands
 * `obliterate` — Obliterate a file or fragment
 * `history` — List revisions of a file
 * `diff` — Show differences between two revisions of a file
+* `difftool` — Show changes using an external diff tool
 * `write` — Write data to a specific location
 * `hash` — Hash a local file
 
@@ -2326,6 +2329,38 @@ Show differences between two revisions of a file
 * `--ignore-space-at-eol` — Treat lines that differ only in trailing whitespace as unchanged
 * `--ignore-space-change` — Collapse runs of internal whitespace to a single space before comparing
 * `--targets <file>` — Path to a targets file containing all the paths to all files
+
+## `lore difftool`
+
+Show changes using an external diff tool
+
+**Usage:** `lore difftool [OPTIONS] [paths]...`
+
+###### **Arguments:**
+
+* `<paths>` — Paths to compare; defaults to the whole repository
+
+###### **Options:**
+
+* `--debug` — Enable debug output
+* `--source <revision>` — Revision to compare from (defaults to the current revision, as with lore diff)
+* `--target <revision>` — Revision to compare to (defaults to the working tree)
+* `--staged` [alias: `cached`] — Compare changes selected for commit (Lore stages paths, so their current contents are used)
+* `--targets <file>` — Read paths from a targets file
+* `-t`, `--tool <tool>` — Diff tool to launch (see --tool-help)
+* `-x`, `--extcmd <command>` — Shell command to run with the two file paths appended
+* `--tool-help` — List built-in and configured tools
+* `-y`, `--no-prompt` — Do not prompt before launching each tool
+* `--prompt` — Prompt before each invocation, overriding configuration
+* `-d`, `--dir-diff` — Compare directories containing all changed files, without prompting
+* `-g`, `--gui` — Select diff.guitool instead of diff.tool
+* `--no-gui` — Override selection of a graphical tool
+* `--trust-exit-code` — Stop and return the tool's exit code on failure
+* `--no-trust-exit-code` — Ignore nonzero tool exit codes
+* `--symlinks` — Link the right directory to working files (default on Unix)
+* `--no-symlinks` — Copy working files into the right directory and copy edits back afterwards
+* `--rotate-to <path>` — Start at this repository-relative path, moving earlier paths to the end
+* `--skip-to <path>` — Start at this repository-relative path and skip earlier paths
 
 ## `lore history`
 

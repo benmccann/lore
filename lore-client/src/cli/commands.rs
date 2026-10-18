@@ -3,6 +3,7 @@
 pub mod auth;
 pub mod branch;
 pub mod completions;
+pub mod difftool;
 pub mod file;
 pub mod layer;
 pub mod link;

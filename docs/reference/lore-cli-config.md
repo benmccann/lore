@@ -114,7 +114,45 @@ The file is optional; when it's absent, Lore uses the defaults below.
 | --- | --- | --- | --- |
 | `pager` | string | `less -R` (Unix and macOS), `more.com` (Windows) | The pager program Lore pipes long output through. |
 
-`pager` is the only field Lore reads from `cli.toml` today. The CLI's other behavioral settings — JSON output, log level, debug logging, and non-interactive mode — are set per invocation through command-line flags, not through this file. Passing `--no-pager` (or requesting JSON output) overrides `pager` for that command and disables paging.
+Passing `--no-pager` (or requesting JSON output) overrides `pager` for that command and disables paging. JSON output, log level, debug logging, and non-interactive mode are set per invocation through command-line flags.
+
+### External diff tools
+
+`lore difftool` opens the files selected by Lore's diff machinery in an external tool. As with `lore diff`, the default comparison is the current revision against the working tree; use `--source` and `--target` for revision signatures, or `--staged` (`--cached`) to compare changes selected for commit. Lore stages paths rather than snapshots, so staged paths use their current working contents, including edits made after staging. Paths and `--targets` filter the comparison. Git's positional revision syntax and patch-format options are not supported.
+
+```bash
+lore difftool -y -t meld -- src/
+lore difftool --source 12 --target 15 -t vscode
+lore difftool --staged -y -x 'my-diff --wait'
+lore difftool -d --no-symlinks -t meld
+```
+
+The tool options follow [git difftool](https://git-scm.com/docs/git-difftool). Configure them in Lore's user-level `cli.toml`:
+
+```toml
+[diff]
+tool = "vscode"
+guitool = "meld"
+
+[difftool]
+prompt = true
+trustExitCode = false
+guiDefault = false
+
+[difftool.vscode]
+path = "/usr/local/bin/code"
+
+[difftool.custom]
+cmd = 'my-diff --wait "$LOCAL" "$REMOTE"'
+```
+
+`--tool-help` lists built-in and configured tools. `-t`/`--tool` overrides `diff.tool`; `-g`/`--gui` selects `diff.guitool`. GUI selection falls back through `merge.guitool`, `diff.tool`, and `merge.tool`. Normal selection falls back to `merge.tool`, then searches `PATH` for an available tool. `guiDefault` also accepts `"auto"` to select GUI mode when `DISPLAY` is set; `--no-gui` overrides it. `difftool.<tool>.cmd`, `.path`, and `difftool.prompt` fall back to their `mergetool` equivalents. These are Lore settings; `.gitconfig` is not read.
+
+Custom commands run in `sh`, which must be on `PATH` (including on Windows). `LOCAL` and `REMOTE` name the before/after files; `MERGED` names the repository-relative file, and `BASE` has the same value. `-x`/`--extcmd` overrides tool selection and appends the two paths as quoted arguments. Commands must wait until their windows close so temporary files remain available.
+
+Each file prompts by default; `-y`/`--no-prompt` or `--non-interactive` disables prompts, and `--prompt` overrides configuration. `--trust-exit-code` stops on a tool failure and returns its exit code; `--no-trust-exit-code` overrides configuration. Tool execution failures are always reported.
+
+`-d`/`--dir-diff` launches once with two directories and never prompts. On Unix, working files on the right are symlinked by default; Windows defaults to copies. `--symlinks` and `--no-symlinks` override that choice. Copied edits are returned to the working tree unless the original also changed while the tool was open; on conflict, Lore preserves the temporary directory and reports its location. Revision snapshots are temporary and edits to them are discarded. `--rotate-to` and `--skip-to` accept repository-relative changed file names.
 
 ## User-level `config.toml`
 

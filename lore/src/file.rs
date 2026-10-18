@@ -8,6 +8,7 @@ use lore_error_set::prelude::*;
 use lore_macro::LoreArgs;
 use lore_revision::file;
 pub use lore_revision::file::diff::DEFAULT_CONTEXT_LINES;
+pub use lore_revision::file::diff_export::DiffExportEntry;
 use lore_revision::file::dump::DumpError;
 use lore_revision::file::hash::HashError;
 use lore_revision::file::history::HistoryOptions;
@@ -190,6 +191,53 @@ async fn diff_impl(
         },
     )
     .await
+}
+
+/// Export exact before/after file contents for an external diff tool.
+#[derive(Debug, Clone, PartialEq, LoreArgs, bitcode::Encode, bitcode::Decode)]
+#[handler(diff_export_local)]
+pub struct LoreFileDiffExportArgs {
+    pub paths: LoreArray<LoreString>,
+    pub source_revision: LoreString,
+    pub target_revision: LoreString,
+    pub staged: u8,
+    pub output: LoreString,
+}
+
+pub async fn diff_export(
+    globals: LoreGlobalArgs,
+    args: LoreFileDiffExportArgs,
+    callback: LoreEventCallback,
+) -> i32 {
+    dispatch_call(globals, args, callback, diff_export_local).await
+}
+
+fn diff_export_local(
+    globals: LoreGlobalArgs,
+    args: LoreFileDiffExportArgs,
+    callback: LoreEventCallback,
+) -> impl Future<Output = i32> {
+    repository_call_read(
+        globals,
+        callback,
+        args,
+        diff_export,
+        |repository, args| async move {
+            let paths = convert_user_paths(repository.require_path()?, args.paths)
+                .forward::<file::diff::DiffError>("Invalid path")?;
+            let output = make_absolute(args.output.as_str())
+                .forward::<file::diff::DiffError>("Invalid export path")?;
+            file::diff_export::export(
+                repository,
+                args.source_revision.into(),
+                args.target_revision.into(),
+                paths,
+                args.staged != 0,
+                &output,
+            )
+            .await
+        },
+    )
 }
 
 /// Arguments for clearing all metadata associated with a file.

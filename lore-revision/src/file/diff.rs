@@ -134,7 +134,7 @@ pub struct DiffOptions {
 /// opened for the output of such a diff alone and not around the whole of it: calculating the
 /// changes against the filesystem opens one of its own, and a filesystem holds one at a time.
 #[derive(Clone, Copy)]
-enum DiffSide<'a> {
+pub(crate) enum DiffSide<'a> {
     Revision(&'a Arc<State>),
     Working(&'a Arc<InstanceOperationImpl>),
 }
@@ -157,6 +157,32 @@ pub async fn diff(
     diff3: bool,
     options: DiffOptions,
 ) -> Result<(), DiffError> {
+    let (state_source, state_target) =
+        resolve_diff_states(repository.clone(), source_revision, target_revision).await?;
+    let revision_source = state_source.revision();
+    let revision_target = state_target.as_ref().map(|state| state.revision());
+
+    if diff3 {
+        Box::pin(file_diff3(
+            repository,
+            state_source,
+            state_target,
+            revision_source,
+            revision_target,
+            paths,
+            options,
+        ))
+        .await
+    } else {
+        file_diff2(repository, state_source, state_target, paths, options).await
+    }
+}
+
+pub(crate) async fn resolve_diff_states(
+    repository: Arc<RepositoryContext>,
+    source_revision: Option<String>,
+    target_revision: Option<String>,
+) -> Result<(Arc<State>, Option<Arc<State>>), DiffError> {
     // Resolve the source revision
     let revision_source = if let Some(signature) = source_revision {
         revision::resolve(
@@ -218,20 +244,7 @@ pub async fn diff(
 
     require_working_tree_target(&repository, state_target.as_ref())?;
 
-    if diff3 {
-        Box::pin(file_diff3(
-            repository,
-            state_source,
-            state_target,
-            revision_source,
-            revision_target,
-            paths,
-            options,
-        ))
-        .await
-    } else {
-        file_diff2(repository, state_source, state_target, paths, options).await
-    }
+    Ok((state_source, state_target))
 }
 
 /// Refuses a diff against the working tree from a context holding no path to one.
@@ -256,7 +269,44 @@ async fn file_diff2(
     paths: Vec<RelativePath>,
     options: DiffOptions,
 ) -> Result<(), DiffError> {
-    let changes = if let Some(state_target) = state_target.as_ref() {
+    let changes = collect_diff_changes(
+        repository.clone(),
+        &state_source,
+        state_target.as_ref(),
+        paths,
+    )
+    .await?;
+
+    let emit = async |target: DiffSide<'_>| {
+        emit_unified_diffs(
+            repository.clone(),
+            &state_source,
+            target,
+            &changes,
+            &[],
+            options,
+        )
+        .await
+    };
+
+    match state_target {
+        Some(state_target) => emit(DiffSide::Revision(&state_target)).await,
+        None => {
+            with_operation(repository.file_system(), async |operation| {
+                emit(DiffSide::Working(&operation)).await
+            })
+            .await
+        }
+    }
+}
+
+pub(crate) async fn collect_diff_changes(
+    repository: Arc<RepositoryContext>,
+    state_source: &Arc<State>,
+    state_target: Option<&Arc<State>>,
+    paths: Vec<RelativePath>,
+) -> Result<Vec<NodeChange>, DiffError> {
+    let changes = if let Some(state_target) = state_target {
         let (_, mut changes) = collect_stream_with_summary(|tx| {
             diff::diff_revision_paths(
                 repository.clone(),
@@ -297,27 +347,7 @@ async fn file_diff2(
         changes
     };
 
-    let emit = async |target: DiffSide<'_>| {
-        emit_unified_diffs(
-            repository.clone(),
-            &state_source,
-            target,
-            &changes,
-            &[],
-            options,
-        )
-        .await
-    };
-
-    match state_target {
-        Some(state_target) => emit(DiffSide::Revision(&state_target)).await,
-        None => {
-            with_operation(repository.file_system(), async |operation| {
-                emit(DiffSide::Working(&operation)).await
-            })
-            .await
-        }
-    }
+    Ok(changes)
 }
 
 async fn coalesce_staged_moves(
@@ -1178,6 +1208,16 @@ async fn diff_read_file(
     side: DiffSide<'_>,
     relative_path: &RelativePath,
 ) -> Result<DiffContent, DiffError> {
+    Ok(make_diff_content(
+        &read_diff_bytes(repository, side, relative_path).await?,
+    ))
+}
+
+pub(crate) async fn read_diff_bytes(
+    repository: Arc<RepositoryContext>,
+    side: DiffSide<'_>,
+    relative_path: &RelativePath,
+) -> Result<bytes::Bytes, DiffError> {
     let state = match side {
         DiffSide::Revision(state) => state,
         DiffSide::Working(operation) => {
@@ -1188,7 +1228,7 @@ async fn diff_read_file(
                 .read_all()
                 .await
                 .forward_any::<DiffError>("Failed reading file for diff")?;
-            return Ok(make_diff_content(&content));
+            return Ok(content);
         }
     };
 
@@ -1235,5 +1275,5 @@ async fn diff_read_file(
     .await
     .forward::<DiffError>("Failed reading data for diff")?;
 
-    Ok(make_diff_content(&content))
+    Ok(content)
 }

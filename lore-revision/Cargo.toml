@@ -39,6 +39,7 @@ ring = { workspace = true }
 rustls = { workspace = true }
 rustls-native-certs = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 serde_with = { workspace = true }
 smallvec = { workspace = true }
 thiserror = { workspace = true }
@@ -74,7 +75,6 @@ lore-base = { workspace = true, features = ["test-util"] }
 lore-revision = { workspace = true, features = ["test-util"] }
 lore-storage = { workspace = true, features = ["test-util"] }
 lore-transport = { workspace = true, features = ["test-util"] }
-serde_json = { workspace = true }
 serde = { workspace = true }
 # `start_paused` for the tests that drive a polling loop on a virtual clock.
 tokio = { workspace = true, features = ["test-util"] }

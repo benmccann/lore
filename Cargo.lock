@@ -2640,6 +2640,7 @@ version = "0.10.2-nightly"
 dependencies = [
  "anstream 0.6.21",
  "anstyle",
+ "blake3",
  "chrono",
  "clap",
  "clap-markdown",
@@ -2651,6 +2652,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "toml 0.9.12+spec-1.1.0",

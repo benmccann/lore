@@ -313,6 +313,9 @@ pub enum LoreCommands {
     /// Show differences between two revisions of a file
     Diff(file::FileDiffArgs),
 
+    /// Show changes using an external diff tool
+    Difftool(difftool::DifftoolArgs),
+
     /// List revisions of a repository
     History(revision::RevisionHistoryArgs),
 
@@ -359,6 +362,7 @@ pub fn handle_lore_commands(cmd: &LoreCommands, globals: LoreGlobalArgs) -> u8 {
         LoreCommands::Unstage(args) => file::handle_file_unstage(globals, args),
         LoreCommands::Reset(args) => file::handle_file_reset(globals, args),
         LoreCommands::Diff(args) => file::handle_file_diff(globals, args),
+        LoreCommands::Difftool(args) => difftool::handle_difftool(globals, args),
         LoreCommands::History(args) => revision::handle_revision_history(globals, args),
         LoreCommands::Commit(args) => revision::handle_revision_commit(globals, args),
         LoreCommands::Sync(args) => revision::handle_revision_sync(globals, args),

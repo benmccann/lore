@@ -7,6 +7,7 @@ use std::io;
 use lore::interface::LoreLogLevel;
 use serde::Deserialize;
 
+use crate::commands::difftool::ExternalToolsConfig;
 use crate::eprintln;
 
 static CLI_CONFIG: std::sync::OnceLock<CliConfig> = std::sync::OnceLock::new();
@@ -31,6 +32,7 @@ pub struct CliConfig {
     pub debug: bool,
     /// Disable interactive prompts
     pub non_interactive: bool,
+    pub external_tools: ExternalToolsConfig,
 }
 
 impl Default for CliConfig {
@@ -41,6 +43,7 @@ impl Default for CliConfig {
             pager: DEFAULT_PAGER.to_string(),
             debug: false,
             non_interactive: false,
+            external_tools: ExternalToolsConfig::default(),
         }
     }
 }
@@ -50,12 +53,15 @@ impl Default for CliConfig {
 struct CliUserConfig {
     /// Which paginator to use
     pub pager: String,
+    #[serde(flatten)]
+    pub external_tools: ExternalToolsConfig,
 }
 
 impl Default for CliUserConfig {
     fn default() -> Self {
         CliUserConfig {
             pager: DEFAULT_PAGER.to_string(),
+            external_tools: ExternalToolsConfig::default(),
         }
     }
 }
@@ -74,10 +80,12 @@ pub fn setup_config(
         pager: DEFAULT_PAGER.to_string(),
         debug,
         non_interactive,
+        external_tools: ExternalToolsConfig::default(),
     };
 
     if let Ok(user_config) = load_user_config_file() {
         config.pager = user_config.pager;
+        config.external_tools = user_config.external_tools;
     }
 
     if no_pager || json {
